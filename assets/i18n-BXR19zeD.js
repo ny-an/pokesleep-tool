@@ -1,0 +1,1 @@
+import{i as a}from"./api-i18n-core-D0abyBPt.js";import{z as e,a as n,k as s,j as i,e as t}from"./api-i18n-BWxdFUDH.js";import{i as o}from"./react-BL9hAzdq.js";const r={en:t,ja:i,ko:s,"zh-CN":n,"zh-TW":e};a.use(o).init({resources:r,lng:"en",fallbackLng:"en",interpolation:{escapeValue:!1}});
