@@ -189,21 +189,44 @@ function excludeReactFromApi() {
             console.log('[DEBUG] writeBundle - Found Vendor matches:', vendorMatches);
             console.log('[DEBUG] writeBundle - HTML preview (first 500 chars):', html.substring(0, 500));
             
-            // Reactチャンクとvendorチャンクへの参照を削除（より広範囲にマッチ）
+            // Reactチャンクとvendorチャンクへの参照を削除（より確実にマッチ）
+            // まず、より広範囲なパターンで削除
             html = html
-              .replace(/<script[^>]*src="[^"]*react[^"'\s]*\.js"[^>]*><\/script>\s*/gi, '')
-              .replace(/<script[^>]*src="[^"]*vendor[^"'\s]*\.js"[^>]*><\/script>\s*/gi, '')
-              .replace(/<link[^>]*href="[^"]*react[^"'\s]*\.js"[^>]*>\s*/gi, '')
-              .replace(/<link[^>]*href="[^"]*vendor[^"'\s]*\.js"[^>]*>\s*/gi, '')
-              .replace(/<link[^>]*rel="modulepreload"[^>]*href="[^"]*react[^"'\s]*\.js"[^>]*>\s*/gi, '')
-              .replace(/<link[^>]*rel="modulepreload"[^>]*href="[^"]*vendor[^"'\s]*\.js"[^>]*>\s*/gi, '')
-              // baseパスを含む場合も考慮
-              .replace(/<script[^>]*src="[^"]*\/pokesleep-tool\/[^"]*react[^"'\s]*\.js"[^>]*><\/script>\s*/gi, '')
-              .replace(/<script[^>]*src="[^"]*\/pokesleep-tool\/[^"]*vendor[^"'\s]*\.js"[^>]*><\/script>\s*/gi, '')
-              .replace(/<link[^>]*href="[^"]*\/pokesleep-tool\/[^"]*react[^"'\s]*\.js"[^>]*>\s*/gi, '')
-              .replace(/<link[^>]*href="[^"]*\/pokesleep-tool\/[^"]*vendor[^"'\s]*\.js"[^>]*>\s*/gi, '')
-              .replace(/<link[^>]*rel="modulepreload"[^>]*href="[^"]*\/pokesleep-tool\/[^"]*react[^"'\s]*\.js"[^>]*>\s*/gi, '')
-              .replace(/<link[^>]*rel="modulepreload"[^>]*href="[^"]*\/pokesleep-tool\/[^"]*vendor[^"'\s]*\.js"[^>]*>\s*/gi, '');
+              // scriptタグ
+              .replace(/<script[^>]*src="[^"]*react[^"]*\.js"[^>]*><\/script>\s*/gi, '')
+              .replace(/<script[^>]*src="[^"]*vendor[^"]*\.js"[^>]*><\/script>\s*/gi, '')
+              // linkタグ（すべての属性を含む）
+              .replace(/<link[^>]*href="[^"]*react[^"]*\.js"[^>]*>/gi, '')
+              .replace(/<link[^>]*href="[^"]*vendor[^"]*\.js"[^>]*>/gi, '')
+              // より具体的なパターン（modulepreload）
+              .replace(/<link[^>]*rel=["']modulepreload["'][^>]*href="[^"]*react[^"]*\.js"[^>]*>/gi, '')
+              .replace(/<link[^>]*rel=["']modulepreload["'][^>]*href="[^"]*vendor[^"]*\.js"[^>]*>/gi, '')
+              // crossorigin属性を含むパターン
+              .replace(/<link[^>]*crossorigin[^>]*href="[^"]*react[^"]*\.js"[^>]*>/gi, '')
+              .replace(/<link[^>]*crossorigin[^>]*href="[^"]*vendor[^"]*\.js"[^>]*>/gi, '');
+            
+            // 念のため、もう一度より広範囲なパターンで削除
+            html = html.replace(/react[^"'\s<>]*\.js/gi, (match) => {
+              // 行全体がlinkタグまたはscriptタグの場合のみ削除
+              const lines = html.split('\n');
+              for (const line of lines) {
+                if (line.includes(match) && (line.includes('<link') || line.includes('<script'))) {
+                  return ''; // マッチした行を削除
+                }
+              }
+              return match;
+            });
+            
+            // より確実に削除するため、行単位で処理
+            const lines = html.split('\n');
+            html = lines.filter(line => {
+              // reactまたはvendorを含む行で、かつscriptまたはlinkタグを含む行を除外
+              if ((line.includes('react') || line.includes('vendor')) && 
+                  (line.includes('.js') && (line.includes('<script') || line.includes('<link')))) {
+                return false;
+              }
+              return true;
+            }).join('\n');
             
             const afterReactMatches = html.match(/react[^"'\s]*\.js/gi) || [];
             const afterVendorMatches = html.match(/vendor[^"'\s]*\.js/gi) || [];
