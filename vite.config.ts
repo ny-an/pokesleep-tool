@@ -80,9 +80,22 @@ export default defineConfig({
           }
           return 'assets/[name]-[hash][extname]';
         },
-        manualChunks(id, { getModuleInfo }) {
+        manualChunks(id, { getModuleInfo, getModuleIds }) {
           const moduleInfo = getModuleInfo(id);
           if (!moduleInfo) return undefined;
+
+          // APIエントリーポイントのIDを取得
+          const apiEntryIds = new Set<string>();
+          for (const moduleId of getModuleIds()) {
+            const info = getModuleInfo(moduleId);
+            if (info?.isEntry && (
+              moduleId.includes('/api/strength.html') ||
+              moduleId.includes('/api/serialize.html') ||
+              moduleId.includes('/api/deserialize.html')
+            )) {
+              apiEntryIds.add(moduleId);
+            }
+          }
 
           // このモジュールがAPIエントリーポイントから参照されているかチェック
           const checkIsApiModule = (moduleId: string, visited: Set<string> = new Set()): boolean => {
@@ -96,14 +109,12 @@ export default defineConfig({
             if (!info) return false;
 
             // エントリーポイントかチェック
-            if (info.isEntry) {
-              return moduleId.includes('/api/strength.html') ||
-                     moduleId.includes('/api/serialize.html') ||
-                     moduleId.includes('/api/deserialize.html');
+            if (apiEntryIds.has(moduleId)) {
+              return true;
             }
 
             // インポーターを再帰的にチェック（最大深度を制限）
-            if (visited.size > 100) {
+            if (visited.size > 50) {
               return false; // 深すぎる場合はfalseを返す
             }
 
