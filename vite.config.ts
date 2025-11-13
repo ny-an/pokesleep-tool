@@ -90,6 +90,25 @@ function excludeReactFromApi() {
     },
     generateBundle(options, bundle) {
       console.log('[DEBUG] generateBundle called, bundle keys:', Object.keys(bundle));
+      
+      // 生成されたJSファイルをapiModulesに追加
+      for (const [fileName, chunk] of Object.entries(bundle)) {
+        if (chunk && chunk.type === 'chunk' && fileName.startsWith('api/')) {
+          // 生成されたJSファイルのモジュールIDをapiModulesに追加
+          if (chunk.facadeModuleId) {
+            apiModules.add(chunk.facadeModuleId);
+            console.log('[DEBUG] generateBundle - Added API JS file to apiModules:', fileName, 'facadeModuleId:', chunk.facadeModuleId);
+          }
+          // チャンクに含まれるすべてのモジュールをapiModulesに追加
+          if (chunk.modules) {
+            for (const moduleId of Object.keys(chunk.modules)) {
+              apiModules.add(moduleId);
+            }
+            console.log('[DEBUG] generateBundle - Added', Object.keys(chunk.modules).length, 'modules from', fileName, 'to apiModules');
+          }
+        }
+      }
+      
       // APIファイルのHTMLからReactチャンクへの参照を削除
       for (const [fileName, chunk] of Object.entries(bundle)) {
         if (chunk && chunk.type === 'asset') {
