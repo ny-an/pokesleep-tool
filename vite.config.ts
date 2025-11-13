@@ -190,43 +190,28 @@ function excludeReactFromApi() {
             console.log('[DEBUG] writeBundle - HTML preview (first 500 chars):', html.substring(0, 500));
             
             // Reactチャンクとvendorチャンクへの参照を削除（より確実にマッチ）
-            // まず、より広範囲なパターンで削除
+            // 行単位で処理して確実に削除
+            const lines = html.split('\n');
+            html = lines.filter(line => {
+              // reactまたはvendorを含む行で、かつscriptまたはlinkタグを含む行を除外
+              const hasReact = /react[^"'\s<>]*\.js/i.test(line);
+              const hasVendor = /vendor[^"'\s<>]*\.js/i.test(line);
+              const isScriptOrLink = /<(script|link)/i.test(line);
+              
+              if ((hasReact || hasVendor) && isScriptOrLink) {
+                return false; // この行を除外
+              }
+              return true;
+            }).join('\n');
+            
+            // 念のため、正規表現でも削除（行単位で処理した後でも残っている場合に備えて）
             html = html
               // scriptタグ
               .replace(/<script[^>]*src="[^"]*react[^"]*\.js"[^>]*><\/script>\s*/gi, '')
               .replace(/<script[^>]*src="[^"]*vendor[^"]*\.js"[^>]*><\/script>\s*/gi, '')
               // linkタグ（すべての属性を含む）
               .replace(/<link[^>]*href="[^"]*react[^"]*\.js"[^>]*>/gi, '')
-              .replace(/<link[^>]*href="[^"]*vendor[^"]*\.js"[^>]*>/gi, '')
-              // より具体的なパターン（modulepreload）
-              .replace(/<link[^>]*rel=["']modulepreload["'][^>]*href="[^"]*react[^"]*\.js"[^>]*>/gi, '')
-              .replace(/<link[^>]*rel=["']modulepreload["'][^>]*href="[^"]*vendor[^"]*\.js"[^>]*>/gi, '')
-              // crossorigin属性を含むパターン
-              .replace(/<link[^>]*crossorigin[^>]*href="[^"]*react[^"]*\.js"[^>]*>/gi, '')
-              .replace(/<link[^>]*crossorigin[^>]*href="[^"]*vendor[^"]*\.js"[^>]*>/gi, '');
-            
-            // 念のため、もう一度より広範囲なパターンで削除
-            html = html.replace(/react[^"'\s<>]*\.js/gi, (match) => {
-              // 行全体がlinkタグまたはscriptタグの場合のみ削除
-              const lines = html.split('\n');
-              for (const line of lines) {
-                if (line.includes(match) && (line.includes('<link') || line.includes('<script'))) {
-                  return ''; // マッチした行を削除
-                }
-              }
-              return match;
-            });
-            
-            // より確実に削除するため、行単位で処理
-            const lines = html.split('\n');
-            html = lines.filter(line => {
-              // reactまたはvendorを含む行で、かつscriptまたはlinkタグを含む行を除外
-              if ((line.includes('react') || line.includes('vendor')) && 
-                  (line.includes('.js') && (line.includes('<script') || line.includes('<link')))) {
-                return false;
-              }
-              return true;
-            }).join('\n');
+              .replace(/<link[^>]*href="[^"]*vendor[^"]*\.js"[^>]*>/gi, '');
             
             const afterReactMatches = html.match(/react[^"'\s]*\.js/gi) || [];
             const afterVendorMatches = html.match(/vendor[^"'\s]*\.js/gi) || [];
