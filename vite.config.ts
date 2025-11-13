@@ -36,15 +36,39 @@ function excludeReactFromApi() {
         if (chunk && chunk.type === 'asset' && fileName.includes('api/') && fileName.endsWith('.html')) {
           const asset = chunk as { type: 'asset'; source: string | Uint8Array };
           if (typeof asset.source === 'string') {
-            // Reactチャンクとvendorチャンクへの参照を削除
+            // Reactチャンクとvendorチャンクへの参照を削除（より広範囲にマッチ）
             const cleanedHtml = asset.source
-              .replace(/<script[^>]*src="[^"]*\/react-[^"]*\.js"[^>]*><\/script>\s*/g, '')
-              .replace(/<script[^>]*src="[^"]*\/vendor-[^"]*\.js"[^>]*><\/script>\s*/g, '')
-              .replace(/<link[^>]*href="[^"]*\/react-[^"]*\.js"[^>]*>\s*/g, '')
-              .replace(/<link[^>]*href="[^"]*\/vendor-[^"]*\.js"[^>]*>\s*/g, '')
-              .replace(/<link[^>]*rel="modulepreload"[^>]*href="[^"]*\/react-[^"]*\.js"[^>]*>\s*/g, '')
-              .replace(/<link[^>]*rel="modulepreload"[^>]*href="[^"]*\/vendor-[^"]*\.js"[^>]*>\s*/g, '');
+              .replace(/<script[^>]*src="[^"]*react[^"]*\.js"[^>]*><\/script>\s*/gi, '')
+              .replace(/<script[^>]*src="[^"]*vendor[^"]*\.js"[^>]*><\/script>\s*/gi, '')
+              .replace(/<link[^>]*href="[^"]*react[^"]*\.js"[^>]*>\s*/gi, '')
+              .replace(/<link[^>]*href="[^"]*vendor[^"]*\.js"[^>]*>\s*/gi, '')
+              .replace(/<link[^>]*rel="modulepreload"[^>]*href="[^"]*react[^"]*\.js"[^>]*>\s*/gi, '')
+              .replace(/<link[^>]*rel="modulepreload"[^>]*href="[^"]*vendor[^"]*\.js"[^>]*>\s*/gi, '');
             asset.source = cleanedHtml;
+          }
+        }
+      }
+    },
+    writeBundle(options, bundle) {
+      // ビルド後のファイルを直接書き換え（フォールバック）
+      const fs = require('fs');
+      const path = require('path');
+      const outDir = options.dir || 'dist';
+      
+      for (const [fileName, chunk] of Object.entries(bundle)) {
+        if (chunk && chunk.type === 'asset' && fileName.includes('api/') && fileName.endsWith('.html')) {
+          const filePath = path.join(outDir, fileName);
+          if (fs.existsSync(filePath)) {
+            let html = fs.readFileSync(filePath, 'utf-8');
+            // Reactチャンクとvendorチャンクへの参照を削除
+            html = html
+              .replace(/<script[^>]*src="[^"]*react[^"]*\.js"[^>]*><\/script>\s*/gi, '')
+              .replace(/<script[^>]*src="[^"]*vendor[^"]*\.js"[^>]*><\/script>\s*/gi, '')
+              .replace(/<link[^>]*href="[^"]*react[^"]*\.js"[^>]*>\s*/gi, '')
+              .replace(/<link[^>]*href="[^"]*vendor[^"]*\.js"[^>]*>\s*/gi, '')
+              .replace(/<link[^>]*rel="modulepreload"[^>]*href="[^"]*react[^"]*\.js"[^>]*>\s*/gi, '')
+              .replace(/<link[^>]*rel="modulepreload"[^>]*href="[^"]*vendor[^"]*\.js"[^>]*>\s*/gi, '');
+            fs.writeFileSync(filePath, html, 'utf-8');
           }
         }
       }
