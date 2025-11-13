@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en" translate="no">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Strength API</title>
+  </head>
+  <body>
+    <script type="module">
+      import PokemonIv from '../src/util/PokemonIv.ts';
+      import PokemonStrength, { createStrengthParameter } from '../src/util/PokemonStrength.ts';
+      import { PokemonTypes } from '../src/data/pokemons.ts';
+      import fields from '../src/data/fields.ts';
+      import { allFavoriteFieldIndex, noFavoriteFieldIndex, whistlePeriod } from '../src/util/PokemonStrength.ts';
+      import { getMaxSkillLevel } from '../src/util/MainSkill.ts';
+      import events, { loadHelpEventBonus } from '../src/data/events.ts';
+      import i18n from '../src/i18n.ts';
+
+      function parseStrengthParameter(params) {
+        // デフォルト値を更新したパラメータを作成
+        const param = {
+          recoveryBonusCount: 3,
+          isGoodCampTicketSet: true,
+          level: 60,
+          evolved: true,
+          maxSkillLevel: true,
+          recipeBonus: 78,
+        };
+
+        // period
+        const period = params.get('period');
+        if (period !== null) {
+          const periodNum = parseInt(period, 10);
+          if (!isNaN(periodNum) && [1, 3, 8, 16, 24, 168, whistlePeriod, -10, -30, -100].includes(periodNum)) {
+            param.period = periodNum;
+          }
+        }
+
+        // fieldBonus
+        const fieldBonus = params.get('fieldBonus');
+        if (fieldBonus !== null) {
+          const fieldBonusNum = parseInt(fieldBonus, 10);
+          if (!isNaN(fieldBonusNum) && fieldBonusNum >= 0 && fieldBonusNum <= 100) {
+            param.fieldBonus = Math.floor(fieldBonusNum);
+          }
+        }
+
+        // fieldIndex
+        const fieldIndex = params.get('fieldIndex');
+        if (fieldIndex !== null) {
+          const fieldIndexNum = parseInt(fieldIndex, 10);
+          if (!isNaN(fieldIndexNum) && fieldIndexNum >= allFavoriteFieldIndex && fieldIndexNum < fields.length) {
+            param.fieldIndex = fieldIndexNum;
+          }
+        }
+
+        // favoriteType
+        const favoriteType = params.get('favoriteType');
+        if (favoriteType !== null) {
+          const types = favoriteType.split(',').map(t => t.trim());
+          if (types.length === 3 && types.every(t => PokemonTypes.includes(t))) {
+            param.favoriteType = types;
+          }
+        }
+
+        // expertEffect
+        const expertEffect = params.get('expertEffect');
+        if (expertEffect !== null && ['berry', 'ing', 'skill'].includes(expertEffect)) {
+          param.expertEffect = expertEffect;
+        }
+
+        // e4eEnergy
+        const e4eEnergy = params.get('e4eEnergy');
+        if (e4eEnergy !== null) {
+          const e4eEnergyNum = parseInt(e4eEnergy, 10);
+          if (!isNaN(e4eEnergyNum) && [5, 7, 9, 11, 15, 18].includes(e4eEnergyNum)) {
+            param.e4eEnergy = e4eEnergyNum;
+          }
+        }
+
+        // e4eCount
+        const e4eCount = params.get('e4eCount');
+        if (e4eCount !== null) {
+          const e4eCountNum = parseInt(e4eCount, 10);
+          if (!isNaN(e4eCountNum) && e4eCountNum >= 0 && e4eCountNum <= 10) {
+            param.e4eCount = e4eCountNum;
+          }
+        }
+
+        // recoveryBonusCount
+        const recoveryBonusCount = params.get('recoveryBonusCount');
+        if (recoveryBonusCount !== null) {
+          const recoveryBonusCountNum = parseInt(recoveryBonusCount, 10);
+          if (!isNaN(recoveryBonusCountNum) && recoveryBonusCountNum >= 0 && recoveryBonusCountNum <= 4) {
+            param.recoveryBonusCount = Math.min(recoveryBonusCountNum, 4);
+          }
+        }
+
+        // isEnergyAlwaysFull
+        const isEnergyAlwaysFull = params.get('isEnergyAlwaysFull');
+        if (isEnergyAlwaysFull !== null) {
+          param.isEnergyAlwaysFull = isEnergyAlwaysFull === 'true';
+        }
+
+        // sleepScore
+        const sleepScore = params.get('sleepScore');
+        if (sleepScore !== null) {
+          const sleepScoreNum = parseInt(sleepScore, 10);
+          if (!isNaN(sleepScoreNum) && sleepScoreNum >= 0 && sleepScoreNum <= 100) {
+            param.sleepScore = sleepScoreNum;
+          }
+        }
+
+        // tapFrequency
+        const tapFrequency = params.get('tapFrequency');
+        if (tapFrequency !== null && ['always', 'none'].includes(tapFrequency)) {
+          param.tapFrequency = tapFrequency;
+        }
+
+        // tapFrequencyAsleep
+        const tapFrequencyAsleep = params.get('tapFrequencyAsleep');
+        if (tapFrequencyAsleep !== null && ['always', 'none'].includes(tapFrequencyAsleep)) {
+          param.tapFrequencyAsleep = tapFrequencyAsleep;
+        }
+
+        // helpBonusCount
+        const helpBonusCount = params.get('helpBonusCount');
+        if (helpBonusCount !== null) {
+          const helpBonusCountNum = parseInt(helpBonusCount, 10);
+          if (!isNaN(helpBonusCountNum) && helpBonusCountNum >= 0 && helpBonusCountNum <= 4) {
+            param.helpBonusCount = helpBonusCountNum;
+          }
+        }
+
+        // isGoodCampTicketSet
+        const isGoodCampTicketSet = params.get('isGoodCampTicketSet');
+        if (isGoodCampTicketSet !== null) {
+          param.isGoodCampTicketSet = isGoodCampTicketSet === 'true';
+        }
+
+        // level
+        const level = params.get('level');
+        if (level !== null) {
+          const levelNum = parseInt(level, 10);
+          if (!isNaN(levelNum) && [0, 10, 25, 30, 50, 55, 60, 75, 100].includes(levelNum)) {
+            param.level = levelNum;
+          }
+        }
+
+        // evolved
+        const evolved = params.get('evolved');
+        if (evolved !== null) {
+          param.evolved = evolved === 'true';
+        }
+
+        // maxSkillLevel
+        const maxSkillLevel = params.get('maxSkillLevel');
+        if (maxSkillLevel !== null) {
+          param.maxSkillLevel = maxSkillLevel === 'true';
+        }
+
+        // totalFlags
+        const totalFlags = params.get('totalFlags');
+        if (totalFlags !== null) {
+          const flags = totalFlags.split(',').map(f => f.trim() === 'true');
+          if (flags.length === 3 && flags.every(f => typeof f === 'boolean')) {
+            param.totalFlags = flags;
+          }
+        }
+
+        // addHelpingBonusEffect
+        const addHelpingBonusEffect = params.get('addHelpingBonusEffect');
+        if (addHelpingBonusEffect !== null) {
+          param.addHelpingBonusEffect = addHelpingBonusEffect === 'true';
+        }
+
+        // recipeBonus
+        const recipeBonus = params.get('recipeBonus');
+        if (recipeBonus !== null) {
+          let recipeBonusNum = parseInt(recipeBonus, 10);
+          if (!isNaN(recipeBonusNum)) {
+            if (recipeBonusNum === 6 || recipeBonusNum === 11) { recipeBonusNum = 19; }
+            if (recipeBonusNum === 17) { recipeBonusNum = 21; }
+            if ([0, 19, 20, 21, 25, 35, 48, 61, 78].includes(recipeBonusNum)) {
+              param.recipeBonus = recipeBonusNum;
+            }
+          }
+        }
+
+        // recipeLevel
+        const recipeLevel = params.get('recipeLevel');
+        if (recipeLevel !== null) {
+          const recipeLevelNum = parseInt(recipeLevel, 10);
+          if (!isNaN(recipeLevelNum) && [1, 10, 20, 30, 40, 50, 55, 60, 65].includes(recipeLevelNum)) {
+            param.recipeLevel = recipeLevelNum;
+          }
+        }
+
+        // helperBoostLevel
+        const helperBoostLevel = params.get('helperBoostLevel');
+        if (helperBoostLevel !== null) {
+          const helperBoostLevelNum = parseInt(helperBoostLevel, 10);
+          if (!isNaN(helperBoostLevelNum) && helperBoostLevelNum > 0 && helperBoostLevelNum <= getMaxSkillLevel('Helper Boost')) {
+            param.helperBoostLevel = helperBoostLevelNum;
+          }
+        }
+
+        // helperBoostSpecies
+        const helperBoostSpecies = params.get('helperBoostSpecies');
+        if (helperBoostSpecies !== null) {
+          const helperBoostSpeciesNum = parseInt(helperBoostSpecies, 10);
+          if (!isNaN(helperBoostSpeciesNum) && helperBoostSpeciesNum > 0 && helperBoostSpeciesNum <= 6) {
+            param.helperBoostSpecies = helperBoostSpeciesNum;
+          }
+        }
+
+        // berryBurstAuto
+        const berryBurstAuto = params.get('berryBurstAuto');
+        if (berryBurstAuto !== null) {
+          param.berryBurstTeam = param.berryBurstTeam || { auto: true, species: 3, members: [] };
+          param.berryBurstTeam.auto = berryBurstAuto === 'true';
+        }
+
+        // berryBurstSpecies
+        const berryBurstSpecies = params.get('berryBurstSpecies');
+        if (berryBurstSpecies !== null) {
+          const berryBurstSpeciesNum = parseInt(berryBurstSpecies, 10);
+          if (!isNaN(berryBurstSpeciesNum)) {
+            param.berryBurstTeam = param.berryBurstTeam || { auto: true, species: 3, members: [] };
+            param.berryBurstTeam.species = berryBurstSpeciesNum;
+          }
+        }
+
+        // berryBurstMembers
+        const berryBurstMembers = params.get('berryBurstMembers');
+        if (berryBurstMembers !== null) {
+          try {
+            const members = JSON.parse(berryBurstMembers);
+            if (Array.isArray(members) && members.length <= 4) {
+              param.berryBurstTeam = param.berryBurstTeam || { auto: true, species: 3, members: [] };
+              param.berryBurstTeam.members = members.slice(0, 4);
+            }
+          } catch {
+            // ignore parse error
+          }
+        }
+
+        // event
+        const eventNames = events.bonus.map(x => x.name);
+        const event = params.get('event');
+        if (event !== null && ['none', 'custom', ...eventNames].includes(event)) {
+          param.event = event;
+        }
+
+        // customEventBonus
+        const customEventBonus = params.get('customEventBonus');
+        if (customEventBonus !== null) {
+          try {
+            const bonus = JSON.parse(customEventBonus);
+            if (typeof bonus === 'object' && bonus !== null) {
+              param.customEventBonus = loadHelpEventBonus(bonus);
+            }
+          } catch {
+            // ignore parse error
+          }
+        }
+
+        return createStrengthParameter(param);
+      }
+
+      try {
+        const params = new URLSearchParams(window.location.search);
+        
+        // ivパラメータは必須
+        const ivParam = params.get('iv');
+        if (!ivParam) {
+          throw new Error('iv parameter is required');
+        }
+
+        // 言語パラメータを取得（デフォルト: en）
+        const lang = params.get('lang') || 'en';
+        const validLangs = ['en', 'ja', 'ko', 'zh-CN', 'zh-TW'];
+        const language = validLangs.includes(lang) ? lang : 'en';
+        
+        // i18nの言語を設定
+        await i18n.changeLanguage(language);
+
+        // ポケモンIVをデシリアライズ（入力された元のポケモン）
+        const iv = PokemonIv.deserialize(ivParam);
+        const inputPokemonName = iv.pokemonName;
+
+        // 環境設定パラメータを解析
+        const strengthParam = parseStrengthParameter(params);
+
+        // 性能計算を実行
+        const strength = new PokemonStrength(iv, strengthParam);
+        const result = strength.calculate();
+        
+        // 計算に使用されたポケモンIVを取得（進化やレベル変更が適用された後のもの）
+        const calculatedIv = strength.pokemonIv;
+        const calculatedPokemonName = calculatedIv.pokemonName;
+
+        // iv情報を追加（入力ポケモン名と計算ポケモン名を併記）
+        const ivInfo = {
+          pokemon: i18n.t(`pokemons.${calculatedPokemonName}`),
+          inputPokemon: inputPokemonName !== calculatedPokemonName ? i18n.t(`pokemons.${inputPokemonName}`) : null,
+          level: calculatedIv.level,
+          skillLevel: calculatedIv.skillLevel,
+          subSkills: {
+            lv10: calculatedIv.subSkills.lv10 ? i18n.t(`subskill.${calculatedIv.subSkills.lv10.name}`) : null,
+            lv25: calculatedIv.subSkills.lv25 ? i18n.t(`subskill.${calculatedIv.subSkills.lv25.name}`) : null,
+            lv50: calculatedIv.subSkills.lv50 ? i18n.t(`subskill.${calculatedIv.subSkills.lv50.name}`) : null,
+            lv75: calculatedIv.subSkills.lv75 ? i18n.t(`subskill.${calculatedIv.subSkills.lv75.name}`) : null,
+            lv100: calculatedIv.subSkills.lv100 ? i18n.t(`subskill.${calculatedIv.subSkills.lv100.name}`) : null,
+          },
+          nature: i18n.t(`natures.${calculatedIv.nature.name}`),
+          ingredient: calculatedIv.ingredient,
+          ribbon: calculatedIv.ribbon,
+        };
+
+        // ingredientsの翻訳マッピング（既存のi18nには個別の食材名の翻訳がないため手動で定義）
+        const ingredientTranslationsEn = {
+          leek: "Large Leek",
+          mushroom: "Tasty Mushroom",
+          egg: "Fancy Egg",
+          potato: "Soft Potato",
+          apple: "Fancy Apple",
+          herb: "Fiery Herb",
+          sausage: "Bean Sausage",
+          milk: "Moomoo Milk",
+          honey: "Honey",
+          oil: "Pure Oil",
+          ginger: "Warming Ginger",
+          tomato: "Snoozy Tomato",
+          cacao: "Soothing Cacao",
+          tail: "Slowpoke Tail",
+          soy: "Greengrass Soybeans",
+          corn: "Greengrass Corn",
+          coffee: "Rousing Coffee",
+          pumpkin: "Plump Pumpkin",
+          avocado: "Glossy Avocado",
+          unknown: "Unknown",
+          unknown1: "Unknown1",
+          unknown2: "Unknown2",
+          unknown3: "Unknown3",
+        };
+        const ingredientTranslations = {
+          en: ingredientTranslationsEn,
+          ja: {
+            leek: "ふといながねぎ",
+            mushroom: "あじわいキノコ",
+            egg: "とくせんエッグ",
+            potato: "ほっこりポテト",
+            apple: "とくせんリンゴ",
+            herb: "げきからハーブ",
+            sausage: "マメミート",
+            milk: "モーモーミルク",
+            honey: "あまいミツ",
+            oil: "ピュアなオイル",
+            ginger: "あったかジンジャー",
+            tomato: "あんみんトマト",
+            cacao: "リラックスカカオ",
+            tail: "おいしいシッポ",
+            soy: "ワカクサ大豆",
+            corn: "ワカクサコーン",
+            coffee: "めざましコーヒー",
+            pumpkin: "ふっくらカボチャ",
+            avocado: "つやつやアボカド",
+            unknown: "不明",
+            unknown1: "不明1",
+            unknown2: "不明2",
+            unknown3: "不明3",
+          },
+          // 他の言語は英語名をフォールバックとして使用
+          ko: ingredientTranslationsEn,
+          'zh-CN': ingredientTranslationsEn,
+          'zh-TW': ingredientTranslationsEn,
+        };
+
+        // summaryを追加
+        const summary = {
+          ingredients: result.ingredients.map(ing => ({
+            name: ingredientTranslations[language]?.[ing.name] || ing.name,
+            count: ing.count,
+          })),
+          skill: {
+            skillRatio: result.skillRatio,
+            skillCount: result.skillCount,
+            skillValue: result.skillValue,
+          },
+        };
+
+        // JSONとして返す
+        const response = {
+          success: true,
+          result: {
+            iv: ivInfo,
+            summary: summary,
+            ...result
+          }
+        };
+
+        // Content-Typeを設定してJSONを返す
+        document.body.textContent = JSON.stringify(response, null, 2);
+        document.body.style.fontFamily = 'monospace';
+        document.body.style.padding = '1rem';
+        document.body.style.whiteSpace = 'pre-wrap';
+      } catch (error) {
+        // エラーの場合はエラーメッセージを返す
+        const errorResponse = {
+          success: false,
+          error: error.message || String(error)
+        };
+        document.body.textContent = JSON.stringify(errorResponse, null, 2);
+        document.body.style.fontFamily = 'monospace';
+        document.body.style.padding = '1rem';
+        document.body.style.color = 'red';
+        document.body.style.whiteSpace = 'pre-wrap';
+      }
+    </script>
+  </body>
+</html>
+

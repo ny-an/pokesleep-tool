@@ -22,6 +22,7 @@ export default defineConfig({
         ivZhTw: path.resolve(__dirname, 'iv/index.zh-tw.html'),
         apiSerialize: path.resolve(__dirname, 'api/serialize.html'),
         apiDeserialize: path.resolve(__dirname, 'api/deserialize.html'),
+        apiStrength: path.resolve(__dirname, 'api/strength.html'),
       },
       output: {
         manualChunks(id) {
