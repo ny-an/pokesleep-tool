@@ -6,44 +6,48 @@ import path from 'path';
 
 // APIファイルからReactを除外するプラグイン
 function excludeReactFromApi() {
-  const apiEntryPoints = new Set([
-    '/api/strength.html',
-    '/api/serialize.html',
-    '/api/deserialize.html',
-  ]);
-  
-  // モジュールがAPIエントリーポイントから参照されているかチェック
-  function isApiModule(moduleId, getModuleInfo, visited = new Set()) {
-    if (visited.has(moduleId)) return false;
-    visited.add(moduleId);
-    
-    const moduleInfo = getModuleInfo(moduleId);
-    if (!moduleInfo) return false;
-    
-    // エントリーポイントかチェック
-    if (moduleInfo.isEntry) {
-      // APIエントリーポイントかチェック
-      for (const entry of apiEntryPoints) {
-        if (moduleId.includes(entry)) {
-          return true;
-        }
-      }
-    }
-    
-    // インポーターをチェック（再帰的に）
-    if (moduleInfo.importers) {
-      for (const importer of moduleInfo.importers) {
-        if (isApiModule(importer, getModuleInfo, visited)) {
-          return true;
-        }
-      }
-    }
-    
-    return false;
-  }
+  const apiEntryPoints = new Set();
+  const apiModules = new Set();
   
   return {
     name: 'exclude-react-from-api',
+    buildStart(options) {
+      // APIエントリーポイントを記録
+      if (options.input) {
+        const inputs = typeof options.input === 'string' ? [options.input] :
+                      Array.isArray(options.input) ? options.input :
+                      Object.values(options.input);
+        for (const input of inputs) {
+          if (input.includes('/api/strength.html') ||
+              input.includes('/api/serialize.html') ||
+              input.includes('/api/deserialize.html')) {
+            apiEntryPoints.add(input);
+            console.log('[DEBUG] buildStart - API entry point:', input);
+          }
+        }
+      }
+    },
+    moduleParsed(moduleInfo) {
+      // APIエントリーポイントから参照されているモジュールを記録
+      if (moduleInfo.id) {
+        const isApiEntry = Array.from(apiEntryPoints).some(entry => 
+          moduleInfo.id.includes(entry.replace(/\\/g, '/'))
+        );
+        
+        if (isApiEntry) {
+          apiModules.add(moduleInfo.id);
+          console.log('[DEBUG] moduleParsed - API entry module:', moduleInfo.id);
+        } else if (moduleInfo.importers) {
+          for (const importer of moduleInfo.importers) {
+            if (apiModules.has(importer)) {
+              apiModules.add(moduleInfo.id);
+              console.log('[DEBUG] moduleParsed - API module (via importer):', moduleInfo.id, 'from', importer);
+              break;
+            }
+          }
+        }
+      }
+    },
     resolveId(id, importer) {
       // React関連のモジュールかチェック
       const isReactModule = id === 'react' || id === 'react-dom' || id === 'react/jsx-runtime' || 
@@ -51,15 +55,26 @@ function excludeReactFromApi() {
       
       if (!isReactModule) return null;
       
-      // importerがAPIエントリーポイントまたはapi/で始まるJSファイルかチェック
+      // importerがAPIモジュールかチェック
+      if (importer && apiModules.has(importer)) {
+        console.log('[DEBUG] resolveId - Excluding React module:', id, 'from', importer);
+        // 空のモジュールを返す
+        return { id: '\0virtual:react-stub', moduleSideEffects: false };
+      }
+      
+      // フォールバック: importerがAPIエントリーポイントまたはapi/で始まるJSファイルかチェック
       if (importer) {
         const isApiImporter = importer.includes('/api/strength.html') ||
                              importer.includes('/api/serialize.html') ||
                              importer.includes('/api/deserialize.html') ||
-                             (importer.includes('/api/') && importer.endsWith('.js'));
+                             (importer.includes('/api/') && importer.endsWith('.js')) ||
+                             // 絶対パスやビルド後のパスも考慮
+                             importer.includes('api/strength') ||
+                             importer.includes('api/serialize') ||
+                             importer.includes('api/deserialize');
         
         if (isApiImporter) {
-          console.log('[DEBUG] resolveId - Excluding React module:', id, 'from', importer);
+          console.log('[DEBUG] resolveId - Excluding React module (fallback):', id, 'from', importer);
           // 空のモジュールを返す
           return { id: '\0virtual:react-stub', moduleSideEffects: false };
         }
