@@ -4,9 +4,45 @@ import react from '@vitejs/plugin-react'
 import { configDefaults } from 'vitest/config'
 import path from 'path';
 
+// APIファイルからReactを除外するプラグイン
+function excludeReactFromApi() {
+  return {
+    name: 'exclude-react-from-api',
+    resolveId(id, importer) {
+      // APIファイルからReact関連のモジュールを除外
+      if (importer && (
+        importer.includes('/api/strength.html') ||
+        importer.includes('/api/serialize.html') ||
+        importer.includes('/api/deserialize.html')
+      )) {
+        if (id === 'react' || id === 'react-dom' || id === 'react/jsx-runtime' || 
+            id === 'react-i18next' || id.startsWith('react/') || id.startsWith('react-dom/')) {
+          // 空のモジュールを返す
+          return { id: '\0virtual:react-stub', moduleSideEffects: false };
+        }
+      }
+      return null;
+    },
+    load(id) {
+      if (id === '\0virtual:react-stub') {
+        // 空のモジュールを返す
+        return 'export default {};';
+      }
+      return null;
+    },
+  };
+}
+
 export default defineConfig({
   base: '/pokesleep-tool/',
-  plugins: [eslint(), react()],
+  plugins: [
+    excludeReactFromApi(),
+    eslint(), 
+    react({
+      // APIファイルにはReactプラグインを適用しない
+      exclude: /\/api\/.*\.html$/,
+    })
+  ],
   build: {
     rollupOptions: {
       input: {
@@ -44,7 +80,7 @@ export default defineConfig({
           }
           return 'assets/[name]-[hash][extname]';
         },
-        manualChunks(id, { getModuleInfo }) {
+        manualChunks(id) {
           // Third-party libraries
           if (id.includes('node_modules')) {
             if (id.includes('@mui') || id.includes('@emotion')) {
@@ -78,6 +114,9 @@ export default defineConfig({
           }
           if (id.includes('/src/i18n/') || id.includes('/src/i18n.ts')) {
             return 'i18n';
+          }
+          if (id.includes('/src/i18n-api.ts')) {
+            return 'i18n-api';
           }
           if (id.includes('PokemonIconData.ts')) {
             return 'pokemon-icon';
