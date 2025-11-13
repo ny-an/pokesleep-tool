@@ -123,53 +123,37 @@ export default defineConfig({
           }
           return 'assets/[name]-[hash][extname]';
         },
-        manualChunks(id, { getModuleInfo, getModuleIds }) {
+        manualChunks(id, { getModuleInfo }) {
           const moduleInfo = getModuleInfo(id);
           if (!moduleInfo) return undefined;
 
-          // APIエントリーポイントのIDを取得
-          const apiEntryIds = new Set<string>();
-          for (const moduleId of getModuleIds()) {
-            const info = getModuleInfo(moduleId);
-            if (info?.isEntry && (
-              moduleId.includes('/api/strength.html') ||
-              moduleId.includes('/api/serialize.html') ||
-              moduleId.includes('/api/deserialize.html')
-            )) {
-              apiEntryIds.add(moduleId);
-            }
+          // シンプルな判定：モジュールIDにapi/が含まれているか、またはAPIエントリーポイントから直接参照されているか
+          const isApiEntry = id.includes('/api/strength.html') ||
+                             id.includes('/api/serialize.html') ||
+                             id.includes('/api/deserialize.html');
+          
+          if (isApiEntry) {
+            // APIエントリーポイント自体は特別な処理は不要
           }
 
-          // このモジュールがAPIエントリーポイントから参照されているかチェック
-          const checkIsApiModule = (moduleId: string, visited: Set<string> = new Set()): boolean => {
-            // 循環参照を防ぐ
-            if (visited.has(moduleId)) {
-              return false;
-            }
-            visited.add(moduleId);
-
-            const info = getModuleInfo(moduleId);
-            if (!info) return false;
-
-            // エントリーポイントかチェック
-            if (apiEntryIds.has(moduleId)) {
-              return true;
-            }
-
-            // インポーターを再帰的にチェック（最大深度を制限）
-            if (visited.size > 50) {
-              return false; // 深すぎる場合はfalseを返す
-            }
-
-            for (const importer of info.importers || []) {
-              if (checkIsApiModule(importer, visited)) {
-                return true;
+          // このモジュールがAPIエントリーポイントから参照されているかチェック（簡易版）
+          let isApiModule = false;
+          if (isApiEntry) {
+            isApiModule = true;
+          } else {
+            // インポーターを1階層だけチェック（パフォーマンス向上）
+            for (const importer of moduleInfo.importers || []) {
+              const importerInfo = getModuleInfo(importer);
+              if (importerInfo?.isEntry && (
+                importer.includes('/api/strength.html') ||
+                importer.includes('/api/serialize.html') ||
+                importer.includes('/api/deserialize.html')
+              )) {
+                isApiModule = true;
+                break;
               }
             }
-            return false;
-          };
-
-          const isApiModule = checkIsApiModule(id);
+          }
 
           // Third-party libraries
           if (id.includes('node_modules')) {
