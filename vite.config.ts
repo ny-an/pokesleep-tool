@@ -55,29 +55,46 @@ function excludeReactFromApi() {
       
       if (!isReactModule) return null;
       
+      // デバッグ: すべてのReactモジュールの解決をログに記録
+      console.log('[DEBUG] resolveId - React module requested:', id, 'from', importer || '(no importer)');
+      
       // importerがAPIモジュールかチェック
       if (importer && apiModules.has(importer)) {
-        console.log('[DEBUG] resolveId - Excluding React module:', id, 'from', importer);
+        console.log('[DEBUG] resolveId - Excluding React module (apiModules):', id, 'from', importer);
         // 空のモジュールを返す
         return { id: '\0virtual:react-stub', moduleSideEffects: false };
       }
       
       // フォールバック: importerがAPIエントリーポイントまたはapi/で始まるJSファイルかチェック
       if (importer) {
-        const isApiImporter = importer.includes('/api/strength.html') ||
-                             importer.includes('/api/serialize.html') ||
-                             importer.includes('/api/deserialize.html') ||
-                             (importer.includes('/api/') && importer.endsWith('.js')) ||
-                             // 絶対パスやビルド後のパスも考慮
-                             importer.includes('api/strength') ||
-                             importer.includes('api/serialize') ||
-                             importer.includes('api/deserialize');
+        // より広範囲なチェック
+        const isApiImporter = 
+          // HTMLエントリーポイント
+          importer.includes('/api/strength.html') ||
+          importer.includes('/api/serialize.html') ||
+          importer.includes('/api/deserialize.html') ||
+          // HTMLプロキシ（Viteが生成する）
+          importer.includes('api/strength.html?') ||
+          importer.includes('api/serialize.html?') ||
+          importer.includes('api/deserialize.html?') ||
+          // JSファイル（生成されたもの）
+          (importer.includes('/api/') && importer.endsWith('.js')) ||
+          // 絶対パスやビルド後のパスも考慮
+          importer.includes('api/strength') ||
+          importer.includes('api/serialize') ||
+          importer.includes('api/deserialize') ||
+          // モジュールIDにapi/が含まれる場合
+          (importer.includes('api') && (importer.includes('strength') || importer.includes('serialize') || importer.includes('deserialize')));
         
         if (isApiImporter) {
           console.log('[DEBUG] resolveId - Excluding React module (fallback):', id, 'from', importer);
           // 空のモジュールを返す
           return { id: '\0virtual:react-stub', moduleSideEffects: false };
+        } else {
+          console.log('[DEBUG] resolveId - NOT excluding React module:', id, 'from', importer, '(not API importer)');
         }
+      } else {
+        console.log('[DEBUG] resolveId - React module requested without importer:', id);
       }
       return null;
     },
