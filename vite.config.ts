@@ -34,32 +34,35 @@ function excludeReactFromApi() {
       console.log('[DEBUG] generateBundle called, bundle keys:', Object.keys(bundle));
       // APIファイルのHTMLからReactチャンクへの参照を削除
       for (const [fileName, chunk] of Object.entries(bundle)) {
-        if (chunk && chunk.type === 'asset' && fileName.includes('api/') && fileName.endsWith('.html')) {
-          console.log('[DEBUG] Processing API HTML file:', fileName);
-          const asset = chunk as { type: 'asset'; source: string | Uint8Array };
-          if (typeof asset.source === 'string') {
-            const originalHtml = asset.source;
-            const reactMatches = originalHtml.match(/react[^"]*\.js/gi) || [];
-            const vendorMatches = originalHtml.match(/vendor[^"]*\.js/gi) || [];
-            console.log('[DEBUG] Found React matches:', reactMatches);
-            console.log('[DEBUG] Found Vendor matches:', vendorMatches);
-            
-            // Reactチャンクとvendorチャンクへの参照を削除（より広範囲にマッチ）
-            const cleanedHtml = originalHtml
-              .replace(/<script[^>]*src="[^"]*react[^"]*\.js"[^>]*><\/script>\s*/gi, '')
-              .replace(/<script[^>]*src="[^"]*vendor[^"]*\.js"[^>]*><\/script>\s*/gi, '')
-              .replace(/<link[^>]*href="[^"]*react[^"]*\.js"[^>]*>\s*/gi, '')
-              .replace(/<link[^>]*href="[^"]*vendor[^"]*\.js"[^>]*>\s*/gi, '')
-              .replace(/<link[^>]*rel="modulepreload"[^>]*href="[^"]*react[^"]*\.js"[^>]*>\s*/gi, '')
-              .replace(/<link[^>]*rel="modulepreload"[^>]*href="[^"]*vendor[^"]*\.js"[^>]*>\s*/gi, '');
-            
-            const afterReactMatches = cleanedHtml.match(/react[^"]*\.js/gi) || [];
-            const afterVendorMatches = cleanedHtml.match(/vendor[^"]*\.js/gi) || [];
-            console.log('[DEBUG] After cleanup - React matches:', afterReactMatches);
-            console.log('[DEBUG] After cleanup - Vendor matches:', afterVendorMatches);
-            console.log('[DEBUG] HTML length changed:', originalHtml.length, '->', cleanedHtml.length);
-            
-            asset.source = cleanedHtml;
+        if (chunk && chunk.type === 'asset') {
+          console.log('[DEBUG] generateBundle - asset:', fileName, 'type:', chunk.type);
+          if (fileName.includes('api/') && fileName.endsWith('.html')) {
+            console.log('[DEBUG] Processing API HTML file in generateBundle:', fileName);
+            const asset = chunk as { type: 'asset'; source: string | Uint8Array };
+            if (typeof asset.source === 'string') {
+              const originalHtml = asset.source;
+              const reactMatches = originalHtml.match(/react[^"]*\.js/gi) || [];
+              const vendorMatches = originalHtml.match(/vendor[^"]*\.js/gi) || [];
+              console.log('[DEBUG] generateBundle - Found React matches:', reactMatches);
+              console.log('[DEBUG] generateBundle - Found Vendor matches:', vendorMatches);
+              
+              // Reactチャンクとvendorチャンクへの参照を削除（より広範囲にマッチ）
+              const cleanedHtml = originalHtml
+                .replace(/<script[^>]*src="[^"]*react[^"]*\.js"[^>]*><\/script>\s*/gi, '')
+                .replace(/<script[^>]*src="[^"]*vendor[^"]*\.js"[^>]*><\/script>\s*/gi, '')
+                .replace(/<link[^>]*href="[^"]*react[^"]*\.js"[^>]*>\s*/gi, '')
+                .replace(/<link[^>]*href="[^"]*vendor[^"]*\.js"[^>]*>\s*/gi, '')
+                .replace(/<link[^>]*rel="modulepreload"[^>]*href="[^"]*react[^"]*\.js"[^>]*>\s*/gi, '')
+                .replace(/<link[^>]*rel="modulepreload"[^>]*href="[^"]*vendor[^"]*\.js"[^>]*>\s*/gi, '');
+              
+              const afterReactMatches = cleanedHtml.match(/react[^"]*\.js/gi) || [];
+              const afterVendorMatches = cleanedHtml.match(/vendor[^"]*\.js/gi) || [];
+              console.log('[DEBUG] generateBundle - After cleanup - React matches:', afterReactMatches);
+              console.log('[DEBUG] generateBundle - After cleanup - Vendor matches:', afterVendorMatches);
+              console.log('[DEBUG] generateBundle - HTML length changed:', originalHtml.length, '->', cleanedHtml.length);
+              
+              asset.source = cleanedHtml;
+            }
           }
         }
       }
@@ -71,6 +74,13 @@ function excludeReactFromApi() {
       const outDir = options.dir || 'dist';
       console.log('[DEBUG] Output directory:', outDir);
       
+      // すべてのHTMLファイルを確認
+      for (const [fileName, chunk] of Object.entries(bundle)) {
+        if (chunk && chunk.type === 'asset' && fileName.endsWith('.html')) {
+          console.log('[DEBUG] writeBundle - Found HTML file:', fileName);
+        }
+      }
+      
       for (const [fileName, chunk] of Object.entries(bundle)) {
         if (chunk && chunk.type === 'asset' && fileName.includes('api/') && fileName.endsWith('.html')) {
           console.log('[DEBUG] Processing API HTML file in writeBundle:', fileName);
@@ -79,25 +89,35 @@ function excludeReactFromApi() {
           if (fs.existsSync(filePath)) {
             let html = fs.readFileSync(filePath, 'utf-8');
             const beforeLength = html.length;
-            const reactMatches = html.match(/react[^"]*\.js/gi) || [];
-            const vendorMatches = html.match(/vendor[^"]*\.js/gi) || [];
+            // より詳細なマッチング（baseパスを含む可能性を考慮）
+            const reactMatches = html.match(/react[^"'\s]*\.js/gi) || [];
+            const vendorMatches = html.match(/vendor[^"'\s]*\.js/gi) || [];
             console.log('[DEBUG] writeBundle - Found React matches:', reactMatches);
             console.log('[DEBUG] writeBundle - Found Vendor matches:', vendorMatches);
+            console.log('[DEBUG] writeBundle - HTML preview (first 500 chars):', html.substring(0, 500));
             
-            // Reactチャンクとvendorチャンクへの参照を削除
+            // Reactチャンクとvendorチャンクへの参照を削除（より広範囲にマッチ）
             html = html
-              .replace(/<script[^>]*src="[^"]*react[^"]*\.js"[^>]*><\/script>\s*/gi, '')
-              .replace(/<script[^>]*src="[^"]*vendor[^"]*\.js"[^>]*><\/script>\s*/gi, '')
-              .replace(/<link[^>]*href="[^"]*react[^"]*\.js"[^>]*>\s*/gi, '')
-              .replace(/<link[^>]*href="[^"]*vendor[^"]*\.js"[^>]*>\s*/gi, '')
-              .replace(/<link[^>]*rel="modulepreload"[^>]*href="[^"]*react[^"]*\.js"[^>]*>\s*/gi, '')
-              .replace(/<link[^>]*rel="modulepreload"[^>]*href="[^"]*vendor[^"]*\.js"[^>]*>\s*/gi, '');
+              .replace(/<script[^>]*src="[^"]*react[^"'\s]*\.js"[^>]*><\/script>\s*/gi, '')
+              .replace(/<script[^>]*src="[^"]*vendor[^"'\s]*\.js"[^>]*><\/script>\s*/gi, '')
+              .replace(/<link[^>]*href="[^"]*react[^"'\s]*\.js"[^>]*>\s*/gi, '')
+              .replace(/<link[^>]*href="[^"]*vendor[^"'\s]*\.js"[^>]*>\s*/gi, '')
+              .replace(/<link[^>]*rel="modulepreload"[^>]*href="[^"]*react[^"'\s]*\.js"[^>]*>\s*/gi, '')
+              .replace(/<link[^>]*rel="modulepreload"[^>]*href="[^"]*vendor[^"'\s]*\.js"[^>]*>\s*/gi, '')
+              // baseパスを含む場合も考慮
+              .replace(/<script[^>]*src="[^"]*\/pokesleep-tool\/[^"]*react[^"'\s]*\.js"[^>]*><\/script>\s*/gi, '')
+              .replace(/<script[^>]*src="[^"]*\/pokesleep-tool\/[^"]*vendor[^"'\s]*\.js"[^>]*><\/script>\s*/gi, '')
+              .replace(/<link[^>]*href="[^"]*\/pokesleep-tool\/[^"]*react[^"'\s]*\.js"[^>]*>\s*/gi, '')
+              .replace(/<link[^>]*href="[^"]*\/pokesleep-tool\/[^"]*vendor[^"'\s]*\.js"[^>]*>\s*/gi, '')
+              .replace(/<link[^>]*rel="modulepreload"[^>]*href="[^"]*\/pokesleep-tool\/[^"]*react[^"'\s]*\.js"[^>]*>\s*/gi, '')
+              .replace(/<link[^>]*rel="modulepreload"[^>]*href="[^"]*\/pokesleep-tool\/[^"]*vendor[^"'\s]*\.js"[^>]*>\s*/gi, '');
             
-            const afterReactMatches = html.match(/react[^"]*\.js/gi) || [];
-            const afterVendorMatches = html.match(/vendor[^"]*\.js/gi) || [];
+            const afterReactMatches = html.match(/react[^"'\s]*\.js/gi) || [];
+            const afterVendorMatches = html.match(/vendor[^"'\s]*\.js/gi) || [];
             console.log('[DEBUG] writeBundle - After cleanup - React matches:', afterReactMatches);
             console.log('[DEBUG] writeBundle - After cleanup - Vendor matches:', afterVendorMatches);
             console.log('[DEBUG] writeBundle - HTML length changed:', beforeLength, '->', html.length);
+            console.log('[DEBUG] writeBundle - HTML preview after cleanup (first 500 chars):', html.substring(0, 500));
             
             fs.writeFileSync(filePath, html, 'utf-8');
             console.log('[DEBUG] writeBundle - File written:', filePath);
