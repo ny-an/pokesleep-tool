@@ -30,6 +30,23 @@ function excludeReactFromApi() {
       }
       return null;
     },
+    generateBundle(options, bundle) {
+      // APIファイルのHTMLからReactチャンクへの参照を削除
+      for (const [fileName, chunk] of Object.entries(bundle)) {
+        if (chunk.type === 'asset' && fileName.includes('api/') && fileName.endsWith('.html')) {
+          const html = chunk.source as string;
+          // Reactチャンクとvendorチャンクへの参照を削除
+          const cleanedHtml = html
+            .replace(/<script[^>]*src="[^"]*\/react-[^"]*\.js"[^>]*><\/script>\s*/g, '')
+            .replace(/<script[^>]*src="[^"]*\/vendor-[^"]*\.js"[^>]*><\/script>\s*/g, '')
+            .replace(/<link[^>]*href="[^"]*\/react-[^"]*\.js"[^>]*>\s*/g, '')
+            .replace(/<link[^>]*href="[^"]*\/vendor-[^"]*\.js"[^>]*>\s*/g, '')
+            .replace(/<link[^>]*rel="modulepreload"[^>]*href="[^"]*\/react-[^"]*\.js"[^>]*>\s*/g, '')
+            .replace(/<link[^>]*rel="modulepreload"[^>]*href="[^"]*\/vendor-[^"]*\.js"[^>]*>\s*/g, '');
+          chunk.source = cleanedHtml;
+        }
+      }
+    },
   };
 }
 
