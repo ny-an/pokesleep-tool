@@ -31,35 +31,59 @@ function excludeReactFromApi() {
       return null;
     },
     generateBundle(options, bundle) {
+      console.log('[DEBUG] generateBundle called, bundle keys:', Object.keys(bundle));
       // APIファイルのHTMLからReactチャンクへの参照を削除
       for (const [fileName, chunk] of Object.entries(bundle)) {
         if (chunk && chunk.type === 'asset' && fileName.includes('api/') && fileName.endsWith('.html')) {
+          console.log('[DEBUG] Processing API HTML file:', fileName);
           const asset = chunk as { type: 'asset'; source: string | Uint8Array };
           if (typeof asset.source === 'string') {
+            const originalHtml = asset.source;
+            const reactMatches = originalHtml.match(/react[^"]*\.js/gi) || [];
+            const vendorMatches = originalHtml.match(/vendor[^"]*\.js/gi) || [];
+            console.log('[DEBUG] Found React matches:', reactMatches);
+            console.log('[DEBUG] Found Vendor matches:', vendorMatches);
+            
             // Reactチャンクとvendorチャンクへの参照を削除（より広範囲にマッチ）
-            const cleanedHtml = asset.source
+            const cleanedHtml = originalHtml
               .replace(/<script[^>]*src="[^"]*react[^"]*\.js"[^>]*><\/script>\s*/gi, '')
               .replace(/<script[^>]*src="[^"]*vendor[^"]*\.js"[^>]*><\/script>\s*/gi, '')
               .replace(/<link[^>]*href="[^"]*react[^"]*\.js"[^>]*>\s*/gi, '')
               .replace(/<link[^>]*href="[^"]*vendor[^"]*\.js"[^>]*>\s*/gi, '')
               .replace(/<link[^>]*rel="modulepreload"[^>]*href="[^"]*react[^"]*\.js"[^>]*>\s*/gi, '')
               .replace(/<link[^>]*rel="modulepreload"[^>]*href="[^"]*vendor[^"]*\.js"[^>]*>\s*/gi, '');
+            
+            const afterReactMatches = cleanedHtml.match(/react[^"]*\.js/gi) || [];
+            const afterVendorMatches = cleanedHtml.match(/vendor[^"]*\.js/gi) || [];
+            console.log('[DEBUG] After cleanup - React matches:', afterReactMatches);
+            console.log('[DEBUG] After cleanup - Vendor matches:', afterVendorMatches);
+            console.log('[DEBUG] HTML length changed:', originalHtml.length, '->', cleanedHtml.length);
+            
             asset.source = cleanedHtml;
           }
         }
       }
     },
     writeBundle(options, bundle) {
-      // ビルド後のファイルを直接書き換え（フォールバック）
+      console.log('[DEBUG] writeBundle called, bundle keys:', Object.keys(bundle));
       const fs = require('fs');
       const path = require('path');
       const outDir = options.dir || 'dist';
+      console.log('[DEBUG] Output directory:', outDir);
       
       for (const [fileName, chunk] of Object.entries(bundle)) {
         if (chunk && chunk.type === 'asset' && fileName.includes('api/') && fileName.endsWith('.html')) {
+          console.log('[DEBUG] Processing API HTML file in writeBundle:', fileName);
           const filePath = path.join(outDir, fileName);
+          console.log('[DEBUG] File path:', filePath);
           if (fs.existsSync(filePath)) {
             let html = fs.readFileSync(filePath, 'utf-8');
+            const beforeLength = html.length;
+            const reactMatches = html.match(/react[^"]*\.js/gi) || [];
+            const vendorMatches = html.match(/vendor[^"]*\.js/gi) || [];
+            console.log('[DEBUG] writeBundle - Found React matches:', reactMatches);
+            console.log('[DEBUG] writeBundle - Found Vendor matches:', vendorMatches);
+            
             // Reactチャンクとvendorチャンクへの参照を削除
             html = html
               .replace(/<script[^>]*src="[^"]*react[^"]*\.js"[^>]*><\/script>\s*/gi, '')
@@ -68,7 +92,17 @@ function excludeReactFromApi() {
               .replace(/<link[^>]*href="[^"]*vendor[^"]*\.js"[^>]*>\s*/gi, '')
               .replace(/<link[^>]*rel="modulepreload"[^>]*href="[^"]*react[^"]*\.js"[^>]*>\s*/gi, '')
               .replace(/<link[^>]*rel="modulepreload"[^>]*href="[^"]*vendor[^"]*\.js"[^>]*>\s*/gi, '');
+            
+            const afterReactMatches = html.match(/react[^"]*\.js/gi) || [];
+            const afterVendorMatches = html.match(/vendor[^"]*\.js/gi) || [];
+            console.log('[DEBUG] writeBundle - After cleanup - React matches:', afterReactMatches);
+            console.log('[DEBUG] writeBundle - After cleanup - Vendor matches:', afterVendorMatches);
+            console.log('[DEBUG] writeBundle - HTML length changed:', beforeLength, '->', html.length);
+            
             fs.writeFileSync(filePath, html, 'utf-8');
+            console.log('[DEBUG] writeBundle - File written:', filePath);
+          } else {
+            console.log('[DEBUG] writeBundle - File not found:', filePath);
           }
         }
       }
@@ -132,14 +166,13 @@ export default defineConfig({
                              id.includes('/api/serialize.html') ||
                              id.includes('/api/deserialize.html');
           
-          if (isApiEntry) {
-            // APIエントリーポイント自体は特別な処理は不要
-          }
-
           // このモジュールがAPIエントリーポイントから参照されているかチェック（簡易版）
           let isApiModule = false;
           if (isApiEntry) {
             isApiModule = true;
+            if (id.includes('node_modules') && (id.includes('react') || id.includes('vendor'))) {
+              console.log('[DEBUG] manualChunks - API entry with React/vendor:', id);
+            }
           } else {
             // インポーターを1階層だけチェック（パフォーマンス向上）
             for (const importer of moduleInfo.importers || []) {
@@ -150,6 +183,9 @@ export default defineConfig({
                 importer.includes('/api/deserialize.html')
               )) {
                 isApiModule = true;
+                if (id.includes('node_modules') && (id.includes('react') || id.includes('vendor'))) {
+                  console.log('[DEBUG] manualChunks - API module with React/vendor:', id, 'from', importer);
+                }
                 break;
               }
             }
