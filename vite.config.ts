@@ -190,7 +190,16 @@ function excludeReactFromApi() {
             console.log('[DEBUG] writeBundle - HTML preview (first 500 chars):', html.substring(0, 500));
             
             // Reactチャンクとvendorチャンクへの参照を削除（より確実にマッチ）
-            // 行単位で処理して確実に削除
+            // まず、正規表現で削除
+            html = html
+              // scriptタグ
+              .replace(/<script[^>]*src="[^"]*react[^"]*\.js"[^>]*><\/script>\s*/gi, '')
+              .replace(/<script[^>]*src="[^"]*vendor[^"]*\.js"[^>]*><\/script>\s*/gi, '')
+              // linkタグ（すべての属性を含む、より広範囲にマッチ）
+              .replace(/<link[^>]*href="[^"]*react[^"]*\.js"[^>]*>/gi, '')
+              .replace(/<link[^>]*href="[^"]*vendor[^"]*\.js"[^>]*>/gi, '');
+            
+            // 行単位で処理して確実に削除（正規表現で削除しきれなかった場合に備えて）
             const lines = html.split('\n');
             html = lines.filter(line => {
               // reactまたはvendorを含む行で、かつscriptまたはlinkタグを含む行を除外
@@ -199,19 +208,11 @@ function excludeReactFromApi() {
               const isScriptOrLink = /<(script|link)/i.test(line);
               
               if ((hasReact || hasVendor) && isScriptOrLink) {
+                console.log('[DEBUG] writeBundle - Filtering out line:', line.trim());
                 return false; // この行を除外
               }
               return true;
             }).join('\n');
-            
-            // 念のため、正規表現でも削除（行単位で処理した後でも残っている場合に備えて）
-            html = html
-              // scriptタグ
-              .replace(/<script[^>]*src="[^"]*react[^"]*\.js"[^>]*><\/script>\s*/gi, '')
-              .replace(/<script[^>]*src="[^"]*vendor[^"]*\.js"[^>]*><\/script>\s*/gi, '')
-              // linkタグ（すべての属性を含む）
-              .replace(/<link[^>]*href="[^"]*react[^"]*\.js"[^>]*>/gi, '')
-              .replace(/<link[^>]*href="[^"]*vendor[^"]*\.js"[^>]*>/gi, '');
             
             const afterReactMatches = html.match(/react[^"'\s]*\.js/gi) || [];
             const afterVendorMatches = html.match(/vendor[^"'\s]*\.js/gi) || [];
