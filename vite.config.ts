@@ -25,7 +25,13 @@ export default defineConfig({
         apiStrength: path.resolve(__dirname, 'api/strength.html'),
       },
       output: {
-        entryFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: (chunkInfo) => {
+          // APIファイルのエントリーポイントはapiディレクトリに配置
+          if (chunkInfo.name?.startsWith('api')) {
+            return 'api/[name]-[hash].js';
+          }
+          return 'assets/[name]-[hash].js';
+        },
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: (assetInfo) => {
           // APIファイルのHTMLはapiディレクトリに配置
