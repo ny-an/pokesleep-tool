@@ -80,63 +80,95 @@ export default defineConfig({
           }
           return 'assets/[name]-[hash][extname]';
         },
-        manualChunks(id) {
+        manualChunks(id, { getModuleInfo }) {
+          const moduleInfo = getModuleInfo(id);
+          if (!moduleInfo) return undefined;
+
+          // このモジュールがAPIエントリーポイントから参照されているかチェック
+          const checkIsApiModule = (moduleId: string): boolean => {
+            const info = getModuleInfo(moduleId);
+            if (!info) return false;
+
+            // エントリーポイントかチェック
+            if (info.isEntry) {
+              return moduleId.includes('/api/strength.html') ||
+                     moduleId.includes('/api/serialize.html') ||
+                     moduleId.includes('/api/deserialize.html');
+            }
+
+            // インポーターを再帰的にチェック
+            for (const importer of info.importers || []) {
+              if (checkIsApiModule(importer)) {
+                return true;
+              }
+            }
+            return false;
+          };
+
+          const isApiModule = checkIsApiModule(id);
+
           // Third-party libraries
           if (id.includes('node_modules')) {
             if (id.includes('@mui') || id.includes('@emotion')) {
-              return 'mui';
+              // APIファイルはMUIを含まない
+              return isApiModule ? undefined : 'mui';
             }
             // react-i18nextはreactチャンクに含めるが、i18nextは別チャンクに
             if (id.includes('react-i18next')) {
-              return 'react';
+              // APIファイルはreact-i18nextを含まない
+              return isApiModule ? undefined : 'react';
             }
             if (id.includes('react') || id.includes('scheduler')) {
-              return 'react';
+              // APIファイルはReactを含まない
+              return isApiModule ? undefined : 'react';
             }
             // i18nextは独立したチャンクに（APIファイルで使用）
             if (id.includes('i18next') && !id.includes('react-i18next')) {
-              return 'i18n-core';
+              return isApiModule ? 'api-i18n-core' : 'i18n-core';
             }
-            return 'vendor';
+            // その他のvendorライブラリ
+            return isApiModule ? 'api-vendor' : 'vendor';
           }
 
           if (id.includes('pokemon.json')) {
-            return 'pokemon';
+            return isApiModule ? 'api-pokemon' : 'pokemon';
           }
           if (id.includes('field.json')) {
-            return 'field';
+            return isApiModule ? 'api-field' : 'field';
           }
           if (id.includes('event.json')) {
-            return 'event';
+            return isApiModule ? 'api-event' : 'event';
           }
           if (id.includes('news.json')) {
-            return 'news';
+            return isApiModule ? 'api-news' : 'news';
           }
           if (id.includes('/src/i18n/') || id.includes('/src/i18n.ts')) {
-            return 'i18n';
+            // APIファイルはreact-i18nextを使うi18n.tsを含まない
+            return isApiModule ? undefined : 'i18n';
           }
           if (id.includes('/src/i18n-api.ts')) {
-            return 'i18n-api';
+            return 'api-i18n';
           }
           if (id.includes('PokemonIconData.ts')) {
-            return 'pokemon-icon';
+            return isApiModule ? 'api-pokemon-icon' : 'pokemon-icon';
           }
           if (id.includes('ui/Resources')) {
-            return 'svg-icon';
+            return isApiModule ? 'api-svg-icon' : 'svg-icon';
           }
           // Catch-all for any other data files
           if (id.includes('/src/data')) {
-            return 'data';
+            return isApiModule ? 'api-data' : 'data';
           }
 
           // Utility modules
           if (id.includes('/src/util/')) {
-            return 'util';
+            return isApiModule ? 'api-util' : 'util';
           }
 
           // Common UI components (Dialog, common, etc.)
           if (id.includes('/src/ui/')) {
-            return 'ui';
+            // APIファイルはUIコンポーネントを含まない
+            return isApiModule ? undefined : 'ui';
           }
 
           return undefined;
