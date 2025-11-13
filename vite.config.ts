@@ -85,7 +85,13 @@ export default defineConfig({
           if (!moduleInfo) return undefined;
 
           // このモジュールがAPIエントリーポイントから参照されているかチェック
-          const checkIsApiModule = (moduleId: string): boolean => {
+          const checkIsApiModule = (moduleId: string, visited: Set<string> = new Set()): boolean => {
+            // 循環参照を防ぐ
+            if (visited.has(moduleId)) {
+              return false;
+            }
+            visited.add(moduleId);
+
             const info = getModuleInfo(moduleId);
             if (!info) return false;
 
@@ -96,9 +102,13 @@ export default defineConfig({
                      moduleId.includes('/api/deserialize.html');
             }
 
-            // インポーターを再帰的にチェック
+            // インポーターを再帰的にチェック（最大深度を制限）
+            if (visited.size > 100) {
+              return false; // 深すぎる場合はfalseを返す
+            }
+
             for (const importer of info.importers || []) {
-              if (checkIsApiModule(importer)) {
+              if (checkIsApiModule(importer, visited)) {
                 return true;
               }
             }
