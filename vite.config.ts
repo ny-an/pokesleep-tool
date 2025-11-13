@@ -27,7 +27,9 @@ export default defineConfig({
       output: {
         entryFileNames: (chunkInfo) => {
           // APIファイルのエントリーポイントはapiディレクトリに配置
-          if (chunkInfo.name?.startsWith('api')) {
+          const name = chunkInfo.name || '';
+          const facadeModuleId = chunkInfo.facadeModuleId || '';
+          if (name.startsWith('api') || facadeModuleId.includes('/api/')) {
             return 'api/[name]-[hash].js';
           }
           return 'assets/[name]-[hash].js';

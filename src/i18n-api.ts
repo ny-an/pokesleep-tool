@@ -1,0 +1,21 @@
+import i18n from "i18next";
+import en from './i18n/en.json';
+import ja from './i18n/ja.json';
+import ko from './i18n/ko.json';
+import zhcn from './i18n/zh-CN.json';
+import zhtw from './i18n/zh-TW.json';
+
+const resources = {en,ja,ko, 'zh-CN': zhcn, 'zh-TW': zhtw};
+
+// Reactに依存しないi18n設定（API用）
+i18n.init({
+    resources,
+    lng: "en",
+    fallbackLng: "en",
+    interpolation: {
+        escapeValue: false
+    }
+});
+
+export default i18n;
+
