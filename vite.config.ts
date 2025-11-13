@@ -6,17 +6,60 @@ import path from 'path';
 
 // APIファイルからReactを除外するプラグイン
 function excludeReactFromApi() {
+  const apiEntryPoints = new Set([
+    '/api/strength.html',
+    '/api/serialize.html',
+    '/api/deserialize.html',
+  ]);
+  
+  // モジュールがAPIエントリーポイントから参照されているかチェック
+  function isApiModule(moduleId, getModuleInfo, visited = new Set()) {
+    if (visited.has(moduleId)) return false;
+    visited.add(moduleId);
+    
+    const moduleInfo = getModuleInfo(moduleId);
+    if (!moduleInfo) return false;
+    
+    // エントリーポイントかチェック
+    if (moduleInfo.isEntry) {
+      // APIエントリーポイントかチェック
+      for (const entry of apiEntryPoints) {
+        if (moduleId.includes(entry)) {
+          return true;
+        }
+      }
+    }
+    
+    // インポーターをチェック（再帰的に）
+    if (moduleInfo.importers) {
+      for (const importer of moduleInfo.importers) {
+        if (isApiModule(importer, getModuleInfo, visited)) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+  
   return {
     name: 'exclude-react-from-api',
     resolveId(id, importer) {
-      // APIファイルからReact関連のモジュールを除外
-      if (importer && (
-        importer.includes('/api/strength.html') ||
-        importer.includes('/api/serialize.html') ||
-        importer.includes('/api/deserialize.html')
-      )) {
-        if (id === 'react' || id === 'react-dom' || id === 'react/jsx-runtime' || 
-            id === 'react-i18next' || id.startsWith('react/') || id.startsWith('react-dom/')) {
+      // React関連のモジュールかチェック
+      const isReactModule = id === 'react' || id === 'react-dom' || id === 'react/jsx-runtime' || 
+                            id === 'react-i18next' || id.startsWith('react/') || id.startsWith('react-dom/');
+      
+      if (!isReactModule) return null;
+      
+      // importerがAPIエントリーポイントまたはapi/で始まるJSファイルかチェック
+      if (importer) {
+        const isApiImporter = importer.includes('/api/strength.html') ||
+                             importer.includes('/api/serialize.html') ||
+                             importer.includes('/api/deserialize.html') ||
+                             (importer.includes('/api/') && importer.endsWith('.js'));
+        
+        if (isApiImporter) {
+          console.log('[DEBUG] resolveId - Excluding React module:', id, 'from', importer);
           // 空のモジュールを返す
           return { id: '\0virtual:react-stub', moduleSideEffects: false };
         }
