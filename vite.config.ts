@@ -287,14 +287,38 @@ export default defineConfig({
               console.log('[DEBUG] manualChunks - API entry with React/vendor:', id);
             }
           } else {
-            // インポーターを1階層だけチェック（パフォーマンス向上）
-            for (const importer of moduleInfo.importers || []) {
-              const importerInfo = getModuleInfo(importer);
-              if (importerInfo?.isEntry && (
-                importer.includes('/api/strength.html') ||
-                importer.includes('/api/serialize.html') ||
-                importer.includes('/api/deserialize.html')
+            // インポーターを再帰的にチェック（APIモジュールを追跡）
+            const visited = new Set();
+            function checkImporter(importerId, depth = 0) {
+              if (depth > 10 || visited.has(importerId)) return false;
+              visited.add(importerId);
+              
+              const importerInfo = getModuleInfo(importerId);
+              if (!importerInfo) return false;
+              
+              // エントリーポイントかチェック
+              if (importerInfo.isEntry && (
+                importerId.includes('/api/strength.html') ||
+                importerId.includes('/api/serialize.html') ||
+                importerId.includes('/api/deserialize.html')
               )) {
+                return true;
+              }
+              
+              // インポーターを再帰的にチェック
+              if (importerInfo.importers) {
+                for (const importer of importerInfo.importers) {
+                  if (checkImporter(importer, depth + 1)) {
+                    return true;
+                  }
+                }
+              }
+              
+              return false;
+            }
+            
+            for (const importer of moduleInfo.importers || []) {
+              if (checkImporter(importer)) {
                 isApiModule = true;
                 if (id.includes('node_modules') && (id.includes('react') || id.includes('vendor'))) {
                   console.log('[DEBUG] manualChunks - API module with React/vendor:', id, 'from', importer);
