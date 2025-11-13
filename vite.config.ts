@@ -3,6 +3,7 @@ import eslint from 'vite-plugin-eslint';
 import react from '@vitejs/plugin-react'
 import { configDefaults } from 'vitest/config'
 import path from 'path';
+import fs from 'fs';
 
 // APIファイルからReactを除外するプラグイン
 function excludeReactFromApi() {
@@ -163,8 +164,6 @@ function excludeReactFromApi() {
     },
     writeBundle(options, bundle) {
       console.log('[DEBUG] writeBundle called, bundle keys:', Object.keys(bundle));
-      const fs = require('fs');
-      const path = require('path');
       const outDir = options.dir || 'dist';
       console.log('[DEBUG] Output directory:', outDir);
       
