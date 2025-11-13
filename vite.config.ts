@@ -44,16 +44,22 @@ export default defineConfig({
           }
           return 'assets/[name]-[hash][extname]';
         },
-        manualChunks(id) {
+        manualChunks(id, { getModuleInfo }) {
           // Third-party libraries
           if (id.includes('node_modules')) {
             if (id.includes('@mui') || id.includes('@emotion')) {
               return 'mui';
             }
-            if (id.includes('react') || id.includes('scheduler') ||
-              id.includes('i18next') || id.includes('react-i18next')
-            ) {
+            // react-i18nextはreactチャンクに含めるが、i18nextは別チャンクに
+            if (id.includes('react-i18next')) {
               return 'react';
+            }
+            if (id.includes('react') || id.includes('scheduler')) {
+              return 'react';
+            }
+            // i18nextは独立したチャンクに（APIファイルで使用）
+            if (id.includes('i18next') && !id.includes('react-i18next')) {
+              return 'i18n-core';
             }
             return 'vendor';
           }
