@@ -1,1 +1,0 @@
-import{r as c}from"./news-99KugwsW.js";class t{researchCalc;ivCalc;constructor(e){this.researchCalc=e.ResearchCalc.map(s=>new r(s)),this.ivCalc=e.IvCalc.map(s=>new r(s))}getArticles(e){return e==="ResearchCalc"?this.researchCalc:this.ivCalc}}class r{date;id;constructor(e){this.date=new Date(Date.parse(e.date)),this.id=e.id}}const l=new t(c);export{l as n};

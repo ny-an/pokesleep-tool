@@ -1,0 +1,1 @@
+import{i as a}from"./i18n-core-D0abyBPt.js";import{z as e,a as n,k as s,j as o,e as i}from"./i18n-D1-t3UoS.js";const t={en:i,ja:o,ko:s,"zh-CN":n,"zh-TW":e};a.init({resources:t,lng:"en",fallbackLng:"en",interpolation:{escapeValue:!1}});
