@@ -25,6 +25,17 @@ export default defineConfig({
         apiStrength: path.resolve(__dirname, 'api/strength.html'),
       },
       output: {
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: (assetInfo) => {
+          // APIファイルのHTMLはapiディレクトリに配置
+          if (assetInfo.name && (assetInfo.name.includes('serialize.html') || 
+              assetInfo.name.includes('deserialize.html') || 
+              assetInfo.name.includes('strength.html'))) {
+            return 'api/[name][extname]';
+          }
+          return 'assets/[name]-[hash][extname]';
+        },
         manualChunks(id) {
           // Third-party libraries
           if (id.includes('node_modules')) {
